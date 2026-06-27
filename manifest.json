@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "关键词放大镜",
+  "version": "1.0",
+  "description": "选中网页上的文字后自动放大，适合演示和展示",
+  "permissions": ["storage"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "关键词放大镜"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"]
+    }
+  ],
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}

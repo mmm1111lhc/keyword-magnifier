@@ -1,0 +1,244 @@
+/* ===== 全局：强制所有文字可选中 ===== */
+* {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+
+/* ===== 功能1: 选中放大 ===== */
+.enlarged-selection {
+  display: inline-block !important;
+  font-size: 2em !important;
+  font-weight: bold !important;
+  line-height: 1.4 !important;
+  letter-spacing: 0.5px !important;
+  animation: enlarge-pop 0.12s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+@keyframes enlarge-pop {
+  0% { transform: scale(0.5); }
+  100% { transform: scale(1); }
+}
+
+/* ===== 演示模式：大鼠标 ===== */
+body.presentation-mode,
+body.presentation-mode * {
+  cursor: none !important;
+}
+
+.presentation-cursor {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999999;
+  width: 44px;
+  height: 44px;
+  border: 3px solid #ff6b35;
+  border-radius: 50%;
+  background: rgba(255, 107, 53, 0.12);
+  transform: translate(-50%, -50%);
+  transition: width 0.12s, height 0.12s, background 0.12s, border-color 0.12s;
+  will-change: left, top;
+}
+
+.presentation-cursor.active {
+  width: 52px;
+  height: 52px;
+  background: rgba(255, 107, 53, 0.25);
+  border-color: #e65100;
+}
+
+.presentation-cursor.annotation-mode-cursor {
+  border-color: #2196f3;
+  background: rgba(33, 150, 243, 0.12);
+}
+
+.presentation-cursor.mosaic-mode-cursor {
+  border-color: #9c27b0;
+  background: rgba(156, 39, 176, 0.12);
+}
+
+/* ===== 注释标签 ===== */
+.annotation-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  background: #fff3e0;
+  color: #bf360c;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 4px;
+  border: 1px solid #ff6b35;
+  cursor: default;
+  box-shadow: 0 1px 4px rgba(255, 107, 53, 0.2);
+  transition: all 0.2s ease;
+  line-height: 1.5;
+  user-select: none;
+  vertical-align: middle;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  position: relative;
+}
+
+.annotation-badge:hover {
+  background: #ffe0b2;
+  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.35);
+  transform: translateY(-1px);
+}
+
+/* 删除按钮（演示模式下显示） */
+.annotation-delete {
+  display: none;
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #e53935;
+  color: white;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  z-index: 1;
+}
+
+.annotation-badge:hover .annotation-delete {
+  display: block;
+}
+
+/* ===== 注释输入弹窗 ===== */
+.annotation-input-popup {
+  position: absolute;
+  z-index: 999998;
+  background: white;
+  border: 2px solid #ff6b35;
+  border-radius: 8px;
+  padding: 10px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+  animation: popIn 0.12s ease-out;
+  min-width: 250px;
+}
+
+@keyframes popIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.annotation-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.annotation-input:focus {
+  border-color: #ff6b35;
+  box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.15);
+}
+
+.annotation-input-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.annotation-input-actions button {
+  padding: 4px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.annotation-btn-save { background: #ff6b35; color: white; }
+.annotation-btn-save:hover { background: #e65100; }
+.annotation-btn-cancel { background: #eee; color: #666; }
+.annotation-btn-cancel:hover { background: #ddd; }
+
+/* 有注释的元素标记 */
+.has-annotation {
+  outline: 1px dashed #ff6b35 !important;
+  outline-offset: 2px !important;
+}
+
+/* ===== 注释/马赛克模式提示栏 ===== */
+#annotation-mode-bar,
+#mosaic-mode-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  color: white;
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  animation: slideDown 0.2s ease-out;
+}
+
+#annotation-mode-bar {
+  background: linear-gradient(135deg, #ff6b35, #e65100);
+}
+
+#mosaic-mode-bar {
+  background: linear-gradient(135deg, #9c27b0, #7b1fa2);
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
+
+/* ===== 马赛克 ===== */
+.mosaic-span {
+  filter: blur(6px) !important;
+  -webkit-filter: blur(6px) !important;
+  cursor: pointer !important;
+  transition: filter 0.25s ease !important;
+  display: inline !important;
+  background: rgba(156, 39, 176, 0.08) !important;
+  border-radius: 2px !important;
+  padding: 0 2px !important;
+}
+
+.mosaic-span:hover {
+  filter: blur(2px) !important;
+  -webkit-filter: blur(2px) !important;
+  background: rgba(156, 39, 176, 0.15) !important;
+}
+
+.mosaic-span.mosaic-revealed {
+  filter: none !important;
+  -webkit-filter: none !important;
+  background: transparent !important;
+}
+
+/* ===== 模式提示浮动文字 ===== */
+.presentation-mode-hint {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 999999;
+  padding: 8px 14px;
+  background: rgba(255, 107, 53, 0.9);
+  color: white;
+  font-size: 12px;
+  border-radius: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  opacity: 0.7;
+  pointer-events: none;
+}
