@@ -1,5 +1,5 @@
 // 关键词放大镜 - Content Script
-// 功能: 放大 / 演示模式(大鼠标+备注) / 注释 / 马赛克
+// 功能: 放大 / 演示模式 / 注释 / 马赛克 / 画笔
 
 // ============ 全局状态 ============
 let state = {
@@ -7,6 +7,7 @@ let state = {
   presentationMode: false,
   annotationMode: false,
   mosaicMode: false,
+  drawMode: false,
   showAnnotations: true,
 };
 
@@ -20,6 +21,7 @@ chrome.storage.sync.get({
   presentationMode: false,
   annotationMode: false,
   mosaicMode: false,
+  drawMode: false,
   showAnnotations: true,
 }, (data) => {
   Object.assign(state, data);
@@ -27,6 +29,7 @@ chrome.storage.sync.get({
   else disablePresentationMode();
   if (state.annotationMode) showModeBar('annotation');
   if (state.mosaicMode) showModeBar('mosaic');
+  if (state.drawMode) enableDrawing();
   applyAnnotationVisibility();
 });
 
@@ -49,6 +52,10 @@ chrome.storage.onChanged.addListener((changes) => {
   if (changes.presentationMode !== undefined) {
     state.presentationMode = changes.presentationMode.newValue;
     state.presentationMode ? enablePresentationMode() : disablePresentationMode();
+  }
+  if (changes.drawMode !== undefined) {
+    state.drawMode = changes.drawMode.newValue;
+    state.drawMode ? enableDrawing() : disableDrawing();
   }
 });
 
@@ -369,6 +376,160 @@ function handleMosaicClick(e) {
   }
   sel.removeAllRanges();
   return true;
+}
+
+// ============ 画笔模式 ============
+
+let drawCanvas = null;
+let drawCtx = null;
+let drawToolbar = null;
+let isDrawing = false;
+let drawLastX = 0, drawLastY = 0;
+let drawTool = 'pen';      // pen | highlighter | eraser
+let drawColor = '#ff0000';
+let drawSize = 3;
+
+function enableDrawing() {
+  if (!drawCanvas) initDrawCanvas();
+  drawCanvas.style.pointerEvents = 'auto';
+  drawCanvas.style.display = 'block';
+  showDrawToolbar();
+}
+
+function disableDrawing() {
+  if (drawCanvas) {
+    drawCanvas.style.pointerEvents = 'none';
+    drawCanvas.style.display = 'none';
+  }
+  hideDrawToolbar();
+}
+
+function initDrawCanvas() {
+  drawCanvas = document.createElement('canvas');
+  drawCanvas.id = 'kwm-draw-canvas';
+  drawCanvas.width = window.innerWidth;
+  drawCanvas.height = window.innerHeight;
+  drawCanvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:999989;pointer-events:none;display:none;';
+  document.body.appendChild(drawCanvas);
+  drawCtx = drawCanvas.getContext('2d');
+  drawCtx.lineCap = 'round';
+  drawCtx.lineJoin = 'round';
+
+  // Mouse events
+  drawCanvas.addEventListener('mousedown', drawStart);
+  drawCanvas.addEventListener('mousemove', drawMove);
+  drawCanvas.addEventListener('mouseup', drawEnd);
+  drawCanvas.addEventListener('mouseleave', drawEnd);
+
+  // Touch / Pen events (iPad 电容笔)
+  drawCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); const t = e.touches[0]; drawStart({ clientX: t.clientX, clientY: t.clientY, pressure: t.force || 0.5 }); }, { passive: false });
+  drawCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); const t = e.touches[0]; drawMove({ clientX: t.clientX, clientY: t.clientY, pressure: t.force || 0.5 }); }, { passive: false });
+  drawCanvas.addEventListener('touchend', (e) => { e.preventDefault(); drawEnd(); }, { passive: false });
+
+  // Resize handler
+  window.addEventListener('resize', () => {
+    const imgData = drawCtx.getImageData(0, 0, drawCanvas.width, drawCanvas.height);
+    drawCanvas.width = window.innerWidth;
+    drawCanvas.height = window.innerHeight;
+    drawCtx.putImageData(imgData, 0, 0);
+  });
+}
+
+function drawStart(e) {
+  isDrawing = true;
+  drawLastX = e.clientX;
+  drawLastY = e.clientY;
+  const pressure = e.pressure || 0.5;
+  if (drawTool === 'eraser') {
+    const s = drawSize * (2 + pressure * 8);
+    drawCtx.clearRect(e.clientX - s/2, e.clientY - s/2, s, s);
+  }
+}
+
+function drawMove(e) {
+  if (!isDrawing) return;
+  const pressure = e.pressure || 0.5;
+
+  if (drawTool === 'eraser') {
+    const s = drawSize * (2 + pressure * 8);
+    drawCtx.clearRect(e.clientX - s/2, e.clientY - s/2, s, s);
+    drawLastX = e.clientX; drawLastY = e.clientY;
+    return;
+  }
+
+  const size = drawTool === 'highlighter' ? drawSize * (3 + pressure * 4) : drawSize * (0.5 + pressure * 2);
+  const alpha = drawTool === 'highlighter' ? 0.25 : 1;
+
+  drawCtx.beginPath();
+  drawCtx.moveTo(drawLastX, drawLastY);
+  drawCtx.lineTo(e.clientX, e.clientY);
+  drawCtx.strokeStyle = drawColor;
+  drawCtx.lineWidth = size;
+  drawCtx.globalAlpha = alpha;
+  drawCtx.stroke();
+  drawCtx.globalAlpha = 1;
+
+  drawLastX = e.clientX; drawLastY = e.clientY;
+}
+
+function drawEnd() { isDrawing = false; }
+
+function clearDrawing() {
+  if (drawCtx && drawCanvas) {
+    drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+  }
+}
+
+function showDrawToolbar() {
+  if (drawToolbar) { drawToolbar.style.display = 'flex'; return; }
+
+  drawToolbar = document.createElement('div');
+  drawToolbar.id = 'kwm-draw-toolbar';
+  drawToolbar.innerHTML = `
+    <div class="kwm-dtb-group">
+      <button class="kwm-dtb-btn active" data-tool="pen" title="钢笔">✏️</button>
+      <button class="kwm-dtb-btn" data-tool="highlighter" title="荧光笔">🖍️</button>
+      <button class="kwm-dtb-btn" data-tool="eraser" title="橡皮擦">🧹</button>
+    </div>
+    <div class="kwm-dtb-group kwm-dtb-colors">
+      <button class="kwm-dtb-clr active" style="background:#ff0000" data-color="#ff0000"></button>
+      <button class="kwm-dtb-clr" style="background:#2196f3" data-color="#2196f3"></button>
+      <button class="kwm-dtb-clr" style="background:#4caf50" data-color="#4caf50"></button>
+      <button class="kwm-dtb-clr" style="background:#ff9800" data-color="#ff9800"></button>
+      <button class="kwm-dtb-clr" style="background:#9c27b0" data-color="#9c27b0"></button>
+      <button class="kwm-dtb-clr" style="background:#000000" data-color="#000000"></button>
+    </div>
+    <div class="kwm-dtb-group">
+      <button class="kwm-dtb-btn kwm-dtb-clear" title="清除全部">🗑️</button>
+    </div>
+  `;
+
+  // Tool selection
+  drawToolbar.querySelectorAll('.kwm-dtb-btn[data-tool]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      drawToolbar.querySelectorAll('.kwm-dtb-btn[data-tool]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      drawTool = btn.dataset.tool;
+    });
+  });
+
+  // Color selection
+  drawToolbar.querySelectorAll('.kwm-dtb-clr').forEach(btn => {
+    btn.addEventListener('click', () => {
+      drawToolbar.querySelectorAll('.kwm-dtb-clr').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      drawColor = btn.dataset.color;
+    });
+  });
+
+  // Clear
+  drawToolbar.querySelector('.kwm-dtb-clear').addEventListener('click', clearDrawing);
+
+  document.body.appendChild(drawToolbar);
+}
+
+function hideDrawToolbar() {
+  if (drawToolbar) drawToolbar.style.display = 'none';
 }
 
 // ============ 接收 popup 消息 ============
